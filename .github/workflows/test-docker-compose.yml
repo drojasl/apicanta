@@ -1,0 +1,39 @@
+name: Test Docker Compose
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+permissions:
+  contents: read
+
+jobs:
+
+  test-docker-compose:
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-postgres-fake-password
+      PROJECT_NAME: Full Stack FastAPI CI
+      SECRET_KEY: ci-secret-key-for-testing
+      FIRST_SUPERUSER: admin@example.com
+      FIRST_SUPERUSER_PASSWORD: ci-admin-password
+      EMAILS_FROM_EMAIL: info@example.com
+      SMTP_HOST: mailpit
+      SMTP_USER: ""
+      SMTP_PASSWORD: ""
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: docker compose build
+      - run: docker compose down -v --remove-orphans
+      - run: docker compose run --rm backend bash scripts/prestart.sh
+      - run: docker compose up -d --wait backend adminer
+      - name: Test backend is up
+        run: curl http://localhost:8000/api/v1/utils/health-check
+      - name: Test frontend is up
+        run: curl http://localhost:8000
+      - run: docker compose down -v --remove-orphans
